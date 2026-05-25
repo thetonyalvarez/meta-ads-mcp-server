@@ -2,11 +2,14 @@
 /**
  * Meta Ads MCP Server
  *
- * MCP server for the Meta (Facebook) Ads API. Provides 39 tools to manage and
- * analyze ad accounts, campaigns, ad sets, ads, creatives, media assets, insights,
- * and activity logs via the Meta Graph API v22.0. Includes read tools plus
- * write/lifecycle tools (create/update/delete/pause/resume) at the campaign,
- * ad set, and ad levels.
+ * MCP server for the Meta (Facebook) Ads API. Provides 24 read tools to
+ * manage and analyze ad accounts, campaigns, ad sets, ads, creatives, media
+ * assets, insights, and activity logs via the Meta Graph API v22.0.
+ *
+ * Opt-in: setting META_ADS_ENABLE_WRITE_TOOLS=true also registers 15
+ * write/lifecycle tools (create/update/delete/pause/resume at the campaign,
+ * ad set, and ad levels). Off by default — these operations are destructive
+ * or hard to reverse.
  *
  * Usage (stdio):
  *   node dist/index.js --access-token <YOUR_META_ACCESS_TOKEN>
@@ -35,6 +38,7 @@ import { registerMediaTools } from "./tools/media.js";
 import { registerActivityTools } from "./tools/activities.js";
 import { registerPaginationTools } from "./tools/pagination.js";
 import { getAccessToken } from "./services/graph-api.js";
+import { isWriteToolsEnabled } from "./constants.js";
 
 const server = new McpServer({
   name: "meta-ads-mcp-server",
@@ -50,6 +54,14 @@ registerCreativeTools(server);
 registerMediaTools(server);
 registerActivityTools(server);
 registerPaginationTools(server);
+
+if (isWriteToolsEnabled()) {
+  console.error(
+    "[meta-ads-mcp] WARNING: META_ADS_ENABLE_WRITE_TOOLS is on — " +
+      "create/update/delete/pause/resume tools are EXPOSED. These can " +
+      "permanently delete campaigns/ad sets/ads or change live delivery."
+  );
+}
 
 async function runStdio(): Promise<void> {
   try {

@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { FB_GRAPH_URL } from "../constants.js";
+import { FB_GRAPH_URL, isWriteToolsEnabled } from "../constants.js";
 import {
   getAccessToken,
   makeGraphApiCall,
@@ -248,6 +248,10 @@ Returns:
       }
     }
   );
+
+  // Write/lifecycle tools are gated behind META_ADS_ENABLE_WRITE_TOOLS so
+  // dangerous mutations (create/update/delete/pause/resume) don't ship by default.
+  if (!isWriteToolsEnabled()) return;
 
   server.registerTool(
     "meta_ads_create_ad",

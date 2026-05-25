@@ -3,6 +3,19 @@ export const FB_GRAPH_URL = `https://graph.facebook.com/${FB_API_VERSION}`;
 
 export const CHARACTER_LIMIT = 25000;
 
+/**
+ * Feature flag: enable mutating tools (create/update/delete/pause/resume) on
+ * campaigns, ad sets, and ads. Off by default — these operations are
+ * destructive or hard to reverse, so an operator must opt in explicitly.
+ *
+ * Enable with: META_ADS_ENABLE_WRITE_TOOLS=true (also accepts "1", "yes", "on").
+ */
+export function isWriteToolsEnabled(): boolean {
+  const raw = process.env.META_ADS_ENABLE_WRITE_TOOLS;
+  if (!raw) return false;
+  return ["true", "1", "yes", "on"].includes(raw.trim().toLowerCase());
+}
+
 export const DEFAULT_AD_ACCOUNT_FIELDS = [
   "name",
   "business_name",
