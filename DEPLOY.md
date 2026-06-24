@@ -101,7 +101,7 @@ Railway). Restart Claude Desktop.
 
 ```
 git remote add upstream https://github.com/hashcott/meta-ads-mcp-server.git
-git fetch upstream && git merge upstream/main
+git fetch upstream && git merge upstream/master
 ```
 The auth change lives only in `src/index.ts` (plus `railway.json`, `.env.example`,
 this file), so upstream merges should stay clean.
