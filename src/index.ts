@@ -24,10 +24,11 @@
  */
 
 import { createRequire } from "module";
+import { createHash, timingSafeEqual } from "crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import express from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../package.json") as { version: string };
@@ -91,6 +92,30 @@ async function runStdio(): Promise<void> {
   console.error("Meta Ads MCP server running via stdio");
 }
 
+// --- Client auth (HTTP mode): single static bearer token --------------------
+// In HTTP mode the server holds a Meta access token that can read live ad
+// accounts, so the /mcp endpoint MUST NOT be public. We require a static bearer
+// token (MCP_BEARER_TOKEN) on every /mcp request — same approach as the GA4
+// connector. /health stays open for the platform healthcheck.
+function tokenMatches(provided: string, expected: string): boolean {
+  // Hash both to fixed-length digests so timingSafeEqual never throws on a
+  // length mismatch and the comparison stays constant-time.
+  const a = createHash("sha256").update(provided).digest();
+  const b = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(a, b);
+}
+
+function requireBearer(expected: string) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const match = (req.get("authorization") ?? "").match(/^Bearer\s+(.+)$/i);
+    if (!match || !tokenMatches(match[1], expected)) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    next();
+  };
+}
+
 async function runHTTP(): Promise<void> {
   try {
     getAccessToken();
@@ -102,10 +127,20 @@ async function runHTTP(): Promise<void> {
     process.exit(1);
   }
 
+  const bearer = process.env.MCP_BEARER_TOKEN;
+  if (!bearer) {
+    console.error(
+      "MCP_BEARER_TOKEN is required in HTTP mode — refusing to expose the " +
+        "Meta ad accounts on an unauthenticated endpoint. Set a long random " +
+        "secret and pass it as Authorization: Bearer <token> from the client."
+    );
+    process.exit(1);
+  }
+
   const app = express();
   app.use(express.json());
 
-  app.post("/mcp", async (req, res) => {
+  app.post("/mcp", requireBearer(bearer), async (req, res) => {
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,
